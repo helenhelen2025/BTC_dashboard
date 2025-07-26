@@ -8,6 +8,8 @@ import json
 from datetime import datetime, timedelta
 import time
 import warnings
+import os
+import urllib.request
 warnings.filterwarnings('ignore')
 
 # 페이지 설정
@@ -17,43 +19,69 @@ st.set_page_config(
     layout="wide"
 )
 
-# 한글 폰트 설정
+# 한글 폰트 설정 (Streamlit Cloud 호환)
 def set_korean_font():
-    """한글 폰트 설정"""
+    """한글 폰트 설정 - Streamlit Cloud 호환"""
     import matplotlib.font_manager as fm
     import platform
     
-    # 시스템별 기본 한글 폰트 설정
-    system = platform.system()
-    if system == 'Windows':
-        # Windows에서 사용 가능한 한글 폰트들
-        korean_fonts = ['Malgun Gothic', 'NanumGothic', 'Batang', 'Dotum']
-    elif system == 'Darwin':  # macOS
-        korean_fonts = ['AppleGothic', 'NanumGothic', 'Arial Unicode MS']
-    else:  # Linux
-        korean_fonts = ['DejaVu Sans', 'NanumGothic', 'Liberation Sans']
+    # 폰트 파일 다운로드 (Streamlit Cloud용)
+    font_url = "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf"
+    font_path = "NanumGothic-Regular.ttf"
     
-    # 사용 가능한 폰트 찾기
-    available_fonts = [f.name for f in fm.fontManager.ttflist]
-    
-    # 한글 폰트 중 사용 가능한 것 선택
-    selected_font = None
-    for font in korean_fonts:
-        if font in available_fonts:
-            selected_font = font
-            break
+    # 폰트 파일이 없으면 다운로드
+    if not os.path.exists(font_path):
+        try:
+            urllib.request.urlretrieve(font_url, font_path)
+            st.success("한글 폰트 다운로드 완료!")
+        except Exception as e:
+            st.warning(f"폰트 다운로드 실패: {e}")
     
     # 폰트 설정
-    if selected_font:
-        plt.rcParams['font.family'] = selected_font
-    else:
-        # 기본 폰트 사용
+    try:
+        if os.path.exists(font_path):
+            # 다운로드한 폰트 파일 사용
+            font_prop = fm.FontProperties(fname=font_path)
+            plt.rcParams['font.family'] = font_prop.get_name()
+        else:
+            # 시스템 폰트 사용
+            system = platform.system()
+            if system == 'Windows':
+                korean_fonts = ['Malgun Gothic', 'NanumGothic', 'Batang', 'Dotum']
+            elif system == 'Darwin':  # macOS
+                korean_fonts = ['AppleGothic', 'NanumGothic', 'Arial Unicode MS']
+            else:  # Linux (Streamlit Cloud)
+                korean_fonts = ['DejaVu Sans', 'Liberation Sans', 'NanumGothic']
+            
+            # 사용 가능한 폰트 찾기
+            available_fonts = [f.name for f in fm.fontManager.ttflist]
+            
+            # 한글 폰트 중 사용 가능한 것 선택
+            selected_font = None
+            for font in korean_fonts:
+                if font in available_fonts:
+                    selected_font = font
+                    break
+            
+            # 폰트 설정
+            if selected_font:
+                plt.rcParams['font.family'] = selected_font
+            else:
+                # 기본 폰트 사용
+                plt.rcParams['font.family'] = 'sans-serif'
+    except Exception as e:
+        # 폰트 설정 실패시 기본값 사용
         plt.rcParams['font.family'] = 'sans-serif'
     
     plt.rcParams['axes.unicode_minus'] = False
 
 # 한글 폰트 적용
-set_korean_font()
+@st.cache_resource
+def init_font():
+    """폰트 초기화 (캐시 적용)"""
+    set_korean_font()
+
+init_font()
 
 @st.cache_data(ttl=300)  # 5분 캐시
 def load_market_data():
@@ -292,7 +320,10 @@ def main():
         fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
         # 한글 폰트 재설정
-        set_korean_font()
+        try:
+            set_korean_font()
+        except:
+            pass  # 폰트 설정 실패시 기본 폰트 사용
         
         # 수익률 바 차트
         bars = ax1.bar(range(len(results_df)), results_df['return_rate'], 
@@ -331,7 +362,10 @@ def main():
             fig2, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
             
             # 한글 폰트 재설정
-            set_korean_font()
+            try:
+                set_korean_font()
+            except:
+                pass  # 폰트 설정 실패시 기본 폰트 사용
             
             # 가격 추이
             ax1.plot(coin_data.index, coin_data['close'], color='blue', linewidth=2)
